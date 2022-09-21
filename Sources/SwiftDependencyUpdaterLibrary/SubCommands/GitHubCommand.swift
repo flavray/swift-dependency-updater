@@ -5,6 +5,7 @@ struct GitHubCommand: ParsableCommand {
 
     static var configuration = CommandConfiguration(commandName: "github", abstract: "Updates dependencies and creates a PR for each one")
 
+    @Option(help: "Dependency to skip") private var skip: [String] = []
     @Argument(help: "Path of the swift package") var folder: String = "."
     @ArgumentParser.Flag(help: "Do not change version requirements in the Package.swift file.") private var keepRequirements = false
 
@@ -47,6 +48,9 @@ struct GitHubCommand: ParsableCommand {
         }
         do {
             var dependencies = try Dependency.loadDependencies(from: folder)
+            dependencies = dependencies.filter { dependency in
+                !skip.contains(where: { $0.lowercased() == dependency.name.lowercased() })
+            }
             dependencies = dependencies.filter { $0.update != nil && $0.update != .skipped }
             if keepRequirements {
                 dependencies = dependencies.filter {

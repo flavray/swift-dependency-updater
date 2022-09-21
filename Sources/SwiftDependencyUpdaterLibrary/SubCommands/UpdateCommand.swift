@@ -5,6 +5,7 @@ struct UpdateCommand: ParsableCommand {
 
     static var configuration = CommandConfiguration(commandName: "update", abstract: "Updates dependencies")
 
+    @Option(help: "Dependency to skip") private var skip: [String] = []
     @Argument(help: "Path of the swift package") var folder: String = "."
     @ArgumentParser.Flag(help: "Do not change version requirements in the Package.swift file.") private var keepRequirements = false
 
@@ -16,6 +17,9 @@ struct UpdateCommand: ParsableCommand {
         }
         do {
             var dependencies = try Dependency.loadDependencies(from: folder)
+            dependencies = dependencies.filter { dependency in
+                !skip.contains(where: { $0.lowercased() == dependency.name.lowercased() })
+            }
             dependencies = dependencies.filter { $0.update != nil && $0.update != .skipped }
             if keepRequirements {
                 dependencies = dependencies.filter {
