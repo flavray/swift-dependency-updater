@@ -47,7 +47,7 @@ struct Dependency {
         try resolvedPackage.dependencies.map { resolvedDependency in
             let packageDependency = packageDescription.dependencies.first { $0.url == resolvedDependency.url }
             let swiftPackageUpdate = swiftPackageUpdates.first { $0.name == resolvedDependency.name }
-            let latestRelease = try Version.getLatestRelease(from: resolvedDependency.url)
+            let latestRelease = try? Version.getLatestRelease(from: resolvedDependency.url)
             let update = try Update.getUpdate(
                 name: resolvedDependency.name,
                 currentVersion: resolvedDependency.version.version,

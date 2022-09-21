@@ -18,9 +18,7 @@ class PackageDescriptionTest: XCTestCase {
 
     func testInvalidFile() {
         var caughtError: Error?
-        let folder = emptyFolderURL()
-        let file = temporaryFileURL(in: folder, name: "Package.swift")
-        createFile(at: file, content: "// swift-tools-version:5.4.0\n")
+        let folder = folderURL(packageContent: "// swift-tools-version:5.4.0\n", packageResolvedContent: nil)
 
         XCTAssertThrowsError(try PackageDescriptionFactory.loadPackageDescription(from: folder)) {
             caughtError = $0
@@ -39,9 +37,7 @@ class PackageDescriptionTest: XCTestCase {
     }
 
     func testParsing() {
-        let folder = emptyFolderURL()
-        let file = temporaryFileURL(in: folder, name: "Package.swift")
-        createFile(at: file, content: TestUtils.packageSwiftFileContent)
+        let folder = folderURL(packageContent: TestUtils.packageSwiftFileContent, packageResolvedContent: nil)
         let result = try! PackageDescriptionFactory.loadPackageDescription(from: folder)
         XCTAssertEqual(result.dependencies.count, 8)
 

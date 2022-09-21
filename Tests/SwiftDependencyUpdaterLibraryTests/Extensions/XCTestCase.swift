@@ -47,17 +47,30 @@ extension XCTestCase {
         return folder
     }
 
-    func createEmptySwiftPackage() -> URL {
+    func folderURL(packageContent: String?, packageResolvedContent: String?) -> URL {
         let folder = emptyFolderURL()
-        let packageSwift = temporaryFileURL(in: folder, name: "Package.swift")
-        createFile(at: packageSwift, content: TestUtils.emptyPackageSwiftFileContent)
-        let packageResolved = temporaryFileURL(in: folder, name: "Package.resolved")
-        createFile(at: packageResolved, content: TestUtils.emptyPackageResolvedFileContent)
+
+        if let packageContent = packageContent {
+            let packageFile = temporaryFileURL(in: folder, name: "Package.swift")
+            createFile(at: packageFile, content: packageContent)
+        }
+
+        if let packageResolvedContent = packageResolvedContent {
+            let resolvedFile = temporaryFileURL(in: folder, name: "Package.resolved")
+            createFile(at: resolvedFile, content: packageResolvedContent)
+        }
+
+        return folder
+    }
+
+    func createEmptySwiftPackage() -> URL {
+        let folder = folderURL(packageContent: TestUtils.emptyPackageSwiftFileContent, packageResolvedContent: TestUtils.packageResolvedV2FileContent)
         let sourceFile = temporaryFileURL(in: folder.appendingPathComponent("Sources/Name"), name: "Name.swift")
         createFile(at: sourceFile, content: "")
 
         return folder
     }
+
 
     func assert<T, E: Error & Equatable>(_ expression: @autoclosure () throws -> T, throws expectedError: E, in file: StaticString = #file, line: UInt = #line) {
         var caughtError: Error?

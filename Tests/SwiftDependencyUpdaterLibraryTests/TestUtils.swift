@@ -3,7 +3,7 @@ import Foundation
 
 enum TestUtils {
 
-    static let emptyPackageResolvedFileContent = """
+    static let emptyPackageResolvedV1FileContent = """
         {
             "object": {
                 "pins": []
@@ -12,7 +12,7 @@ enum TestUtils {
         }
         """
 
-    static let packageResolvedFileContent = """
+    static let packageResolvedV1FileContent = """
         {
             "object": {
                 "pins": [
@@ -46,6 +46,53 @@ enum TestUtils {
                 ]
             },
             "version": 1
+        }
+        """
+
+    static let emptyPackageResolvedV2FileContent = """
+        {
+            "pins": [],
+            "version": 2
+        }
+        """
+
+    static let packageResolvedV2FileContent = """
+        {
+            "pins": [
+            {
+                "identity": "a",
+                "kind": "remoteSourceControl",
+                "location": "https://github.com/a/a.git",
+                "state": {
+                    "revision": "abc"
+                }
+            },
+            {
+                "identity": "b",
+                "kind": "remoteSourceControl",
+                "location": "https://github.com/b/b",
+                "state": {
+                    "revision": "def",
+                    "version": "0.0.0"
+                }
+            },
+            {
+                "identity": "c",
+                "kind": "remoteSourceControl",
+                "location": "https://github.com/c/c.git",
+                "state": {
+                    "branch": "main",
+                    "revision": "ghi"
+                }
+            }
+            ],
+            "version": 2
+        }
+        """
+
+    static let packageResolvedInvalidVersionFileContent = """
+        {
+            "version": 3
         }
         """
 

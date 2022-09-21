@@ -25,9 +25,7 @@ class SwiftPackageTests: XCTestCase {
     }
 
     func testInvalidFile() {
-        let folder = emptyFolderURL()
-        let file = temporaryFileURL(in: folder, name: "Package.swift")
-        createFile(at: file, content: "\n")
+        let folder = folderURL(packageContent: "\n", packageResolvedContent: nil)
         let swiftPackage = SwiftPackage(in: folder)
         let update = Update.withChangingRequirements(try! Version(string: "2.1.2"))
         let resolvedVersion = TestUtils.resolvedVersion("1.2.3")

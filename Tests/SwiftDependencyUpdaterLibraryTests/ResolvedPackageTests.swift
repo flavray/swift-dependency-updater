@@ -29,11 +29,7 @@ class ResolvedPackageTests: XCTestCase {
     }
 
     func testInvalidFileResolve() {
-        let folder = emptyFolderURL()
-        let resolvedFile = temporaryFileURL(in: folder, name: "Package.resolved")
-        createFile(at: resolvedFile, content: "\n")
-        let packageFile = temporaryFileURL(in: folder, name: "Package.swift")
-        createFile(at: packageFile, content: TestUtils.emptyPackageSwiftFileContent)
+        let folder = folderURL(packageContent: TestUtils.emptyPackageSwiftFileContent, packageResolvedContent: "\n")
 
         XCTAssertThrowsError(try ResolvedPackage.resolveAndLoadResolvedPackage(from: folder)) {
             guard let error = $0 as? ResolvedPackageError else {
@@ -50,11 +46,7 @@ class ResolvedPackageTests: XCTestCase {
     }
 
     func testInvalidFile() {
-        let folder = emptyFolderURL()
-        let resolvedFile = temporaryFileURL(in: folder, name: "Package.resolved")
-        createFile(at: resolvedFile, content: "\n")
-        let packageFile = temporaryFileURL(in: folder, name: "Package.swift")
-        createFile(at: packageFile, content: TestUtils.emptyPackageSwiftFileContent)
+        let folder = folderURL(packageContent: TestUtils.emptyPackageSwiftFileContent, packageResolvedContent: "\n")
 
         assert(
             try ResolvedPackage.loadResolvedPackage(from: folder),
@@ -65,32 +57,53 @@ class ResolvedPackageTests: XCTestCase {
         )
     }
 
-    func testParsing() {
-        let folder = emptyFolderURL()
-        let resolvedFile = temporaryFileURL(in: folder, name: "Package.resolved")
-        createFile(at: resolvedFile, content: TestUtils.packageResolvedFileContent)
-        let packageFile = temporaryFileURL(in: folder, name: "Package.swift")
-        createFile(at: packageFile, content: TestUtils.emptyPackageSwiftFileContent)
+    func testParsingV1() {
+        let folder = folderURL(packageContent: TestUtils.emptyPackageSwiftFileContent, packageResolvedContent: TestUtils.packageResolvedV1FileContent)
+
         let result = try! ResolvedPackage.loadResolvedPackage(from: folder)
         XCTAssertEqual(result.dependencies.count, 3)
 
         XCTAssertEqual(result.dependencies[0].name, "a")
         XCTAssertEqual(result.dependencies[0].url, URL(string: "https://github.com/a/a.git")!)
-        XCTAssertNil(result.dependencies[0].version.branch)
-        XCTAssertEqual(result.dependencies[0].version.revision, "abc")
-        XCTAssertNil(result.dependencies[0].version.version)
+        assertVersion(result.dependencies[0].version, branch: nil, revision: "abc", version: nil)
 
         XCTAssertEqual(result.dependencies[1].name, "b")
         XCTAssertEqual(result.dependencies[1].url, URL(string: "https://github.com/b/b")!)
-        XCTAssertNil(result.dependencies[1].version.branch)
-        XCTAssertEqual(result.dependencies[1].version.revision, "def")
-        XCTAssertEqual(result.dependencies[1].version.version, try! Version(string: "0.0.0"))
+        assertVersion(result.dependencies[1].version, branch: nil, revision: "def", version: .init(major: 0, minor: 0, patch: 0))
 
         XCTAssertEqual(result.dependencies[2].name, "c")
         XCTAssertEqual(result.dependencies[2].url, URL(string: "https://github.com/c/c.git")!)
-        XCTAssertEqual(result.dependencies[2].version.branch, "main")
-        XCTAssertEqual(result.dependencies[2].version.revision, "ghi")
-        XCTAssertNil(result.dependencies[2].version.version)
+        assertVersion(result.dependencies[2].version, branch: "main", revision: "ghi", version: nil)
+    }
+
+    func testParsingV2() {
+        let folder = folderURL(packageContent: TestUtils.emptyPackageSwiftFileContent, packageResolvedContent: TestUtils.packageResolvedV2FileContent)
+
+        let result = try! ResolvedPackage.loadResolvedPackage(from: folder)
+        XCTAssertEqual(result.dependencies.count, 3)
+
+        XCTAssertEqual(result.dependencies[0].name, "a")
+        XCTAssertEqual(result.dependencies[0].url, URL(string: "https://github.com/a/a.git")!)
+        assertVersion(result.dependencies[0].version, branch: nil, revision: "abc", version: nil)
+
+        XCTAssertEqual(result.dependencies[1].name, "b")
+        XCTAssertEqual(result.dependencies[1].url, URL(string: "https://github.com/b/b")!)
+        assertVersion(result.dependencies[1].version, branch: nil, revision: "def", version: .init(major: 0, minor: 0, patch: 0))
+
+        XCTAssertEqual(result.dependencies[2].name, "c")
+        XCTAssertEqual(result.dependencies[2].url, URL(string: "https://github.com/c/c.git")!)
+        assertVersion(result.dependencies[2].version, branch: "main", revision: "ghi", version: nil)
+    }
+
+    func testParsingInvalidVersion() {
+        let folder = folderURL(packageContent: TestUtils.emptyPackageSwiftFileContent, packageResolvedContent: TestUtils.packageResolvedInvalidVersionFileContent)
+
+        assert(
+            try ResolvedPackage.loadResolvedPackage(from: folder),
+            throws: [
+                ResolvedPackageError.parsingFailed("Unsupported resolved package version 3", TestUtils.packageResolvedInvalidVersionFileContent),
+            ]
+        )
     }
 
     func testResolvedVersionString() {
@@ -129,6 +142,12 @@ class ResolvedPackageTests: XCTestCase {
         XCTAssertEqual("\(ResolvedPackageError.resolvingFailed("abc").localizedDescription)", "Running swift package resolved failed: abc")
         XCTAssertEqual("\(ResolvedPackageError.readingFailed("abc").localizedDescription)", "Could not read Package.resolved file: abc")
         XCTAssertEqual("\(ResolvedPackageError.parsingFailed("abc", "def").localizedDescription)", "Could not parse package data: abc\n\nPackage Data: def")
+    }
+
+    func assertVersion(_ resolved: ResolvedVersion, branch: String?, revision: String, version: Version?) {
+        XCTAssertEqual(resolved.branch, branch)
+        XCTAssertEqual(resolved.revision, revision)
+        XCTAssertEqual(resolved.version, version)
     }
 
 }

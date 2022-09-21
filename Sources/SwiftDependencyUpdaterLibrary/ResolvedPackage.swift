@@ -15,18 +15,14 @@ struct ResolvedVersion: Decodable {
     let version: Version?
 
     public var versionNumberOrRevision: String {
-        if let version = version {
-            return "\(version)"
-        } else {
-            return "\(revision)"
-        }
+        version.map { $0.string } ?? revision
     }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        branch = try container.decode(String?.self, forKey: .branch)
+        branch = try? container.decode(String?.self, forKey: .branch)
         revision = try container.decode(String.self, forKey: .revision)
-        if let versionString = try container.decode(String?.self, forKey: .version) {
+        if let versionString = try? container.decode(String?.self, forKey: .version) {
             version = try Version(string: versionString)
         } else {
             version = nil
@@ -34,20 +30,10 @@ struct ResolvedVersion: Decodable {
     }
 }
 
-struct ResolvedDependency: Decodable {
-    enum CodingKeys: String, CodingKey {
-        case name = "package"
-        case url = "repositoryURL"
-        case version = "state"
-    }
-
-    let name: String
-    let url: URL
-    let version: ResolvedVersion
-}
-
-private struct Wrapper: Decodable {
-    let object: ResolvedPackage
+protocol ResolvedDependency {
+    var name: String { get }
+    var url: URL { get }
+    var version: ResolvedVersion { get }
 }
 
 enum ResolvedPackageError: Error, Equatable {
@@ -56,13 +42,82 @@ enum ResolvedPackageError: Error, Equatable {
     case parsingFailed(String, String)
 }
 
-struct ResolvedPackage: Decodable {
-    enum CodingKeys: String, CodingKey {
-        case dependencies = "pins"
+struct ResolvedPackage {
+    // Representation of a Package.resolved file
+    // The format is defined in https://github.com/apple/swift-package-manager/blob/main/Sources/PackageGraph/PinsStore.swift
+
+    private struct V1: Decodable {
+        static let version = 1
+
+        struct Container: Decodable {
+            struct Pin: ResolvedDependency, Decodable {
+                enum CodingKeys: String, CodingKey {
+                    case name = "package"
+                    case url = "repositoryURL"
+                    case version = "state"
+                }
+
+                let name: String
+                let url: URL
+                let version: ResolvedVersion
+            }
+
+            let pins: [Pin]
+        }
+
+        let object: Container
+    }
+
+    private struct V2: Decodable {
+        static let version = 2
+
+        struct Pin: ResolvedDependency, Decodable {
+            enum CodingKeys: String, CodingKey {
+                case name = "identity"
+                case url = "location"
+                case version = "state"
+            }
+
+            let name: String
+            let url: URL
+            let version: ResolvedVersion
+        }
+
+        let pins: [Pin]
     }
 
     let dependencies: [ResolvedDependency]
+}
 
+extension ResolvedPackage: Decodable {
+    private enum CodingKeys: String, CodingKey {
+        case version
+    }
+
+    private struct InvalidVersionError: LocalizedError {
+        let version: Int
+
+        var errorDescription: String? {
+            "Unsupported resolved package version \(version)"
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let version = try container.decode(Int.self, forKey: .version)
+
+        switch version {
+        case V1.version:
+            self.dependencies = try V1(from: decoder).object.pins
+        case V2.version:
+            self.dependencies = try V2(from: decoder).pins
+        default:
+            throw InvalidVersionError(version: version)
+        }
+    }
+}
+
+extension ResolvedPackage {
     static func resolveAndLoadResolvedPackage(from folder: URL) throws -> ResolvedPackage {
          do {
             try shellOut(to: "swift", arguments: ["package", "--package-path", "\"\(folder.path)\"", "resolve" ])
@@ -77,8 +132,7 @@ struct ResolvedPackage: Decodable {
         let data = try readResolvedPackageData(from: folder)
         let decoder = JSONDecoder()
         do {
-            let resolvedPackage = try decoder.decode(Wrapper.self, from: data).object
-            return resolvedPackage
+            return try decoder.decode(ResolvedPackage.self, from: data)
         } catch {
             throw ResolvedPackageError.parsingFailed(error.localizedDescription, String(decoding: data, as: UTF8.self))
         }
